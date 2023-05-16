@@ -13,6 +13,7 @@ import(
 	"github.com/gorilla/mux"
 )
 
+
 //==================== STRUCTS ======================
 
 type Movie struct{
@@ -42,6 +43,8 @@ var movies []Movie
 		// Setting up the type of data and how we need to use it
 		json.NewEncoder(w).Encode(movies)
 	}
+
+	
 	
 
 
@@ -124,6 +127,31 @@ var movies []Movie
 
 /////////////////////////////////// Main Function //////////////////////////
 func main(){
+
+//====================== AUTH MIDDLEWARE ===================================
+
+	users := map[string]string{
+		"admin": "password",
+	}
+	
+	// Define a middleware that checks for a valid username and password
+	authMiddleware := func(handler http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			username, password, ok := r.BasicAuth()
+	
+			if !ok || users[username] != password {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Please enter your username and password"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte("401 - Unauthorized"))
+				return
+			}
+	
+			handler(w, r)
+		}
+	}
+
+
+
 	//------------------------- ROUTER ----------------------
 	// Router Created
 	r := mux.NewRouter()
@@ -138,7 +166,8 @@ func main(){
 	//========================== ROUTES REGISTRATION (Like in Python) =======
 
 	// Define all routes here (PATH + Function-Name)
-	r.HandleFunc("/movies", getMovies).Methods("GET")
+	r.HandleFunc("/movies", authMiddleware(getMovies)).Methods("GET")
+	// r.HandleFunc("/movies", getMovies).Methods("GET")
 	r.HandleFunc("/movies/{id}", getMovie).Methods("GET")
 	r.HandleFunc("/movies", createMovie).Methods("POST")
 	r.HandleFunc("/movies/{id}", updateMovie).Methods("PUT")
